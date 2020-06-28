@@ -93,6 +93,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ai_assert
 #endif
 
+#include "assimp/vrm/vrmmeta.h"
+
 #if _MSC_VER > 1500 || (defined __GNUC___)
 #define ASSIMP_GLTF_USE_UNORDERED_MULTIMAP
 #else
@@ -726,6 +728,8 @@ struct PbrSpecularGlossiness {
 
 //! The material appearance of a primitive.
 struct Material : public Object {
+    std::string shaderName;
+
     //PBR metallic roughness properties
     PbrMetallicRoughness pbrMetallicRoughness;
 
@@ -765,6 +769,7 @@ struct Mesh : public Object {
         Ref<Material> material;
 
         struct Target {
+            std::string name;
             AccessorList position, normal, tangent;
         };
         std::vector<Target> targets;
@@ -956,6 +961,22 @@ public:
     inline T &operator[](size_t i) { return *mObjs[i]; }
 };
 
+struct GLTF2VRMMetadata
+{
+    VRM::VRMMetadata* vrmdata;
+
+    std::map <std::string, std::string> materialShaderName;
+
+    void Read(Document& doc, Asset& r);
+
+    GLTF2VRMMetadata() : vrmdata(nullptr) {}
+
+    ~GLTF2VRMMetadata() {
+        if (vrmdata) delete vrmdata;
+        vrmdata = nullptr;
+    }
+};
+
 struct AssetMetadata {
     std::string copyright; //!< A copyright message suitable for display to credit the content creator.
     std::string generator; //!< Tool that generated this glTF model.Useful for debugging.
@@ -1020,6 +1041,8 @@ public:
     } extensionsRequired;
 
     AssetMetadata asset;
+
+    GLTF2VRMMetadata vrmdata;
 
     // Dictionaries for each type of object
 

@@ -62,6 +62,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <rapidjson/document.h>
 #include <rapidjson/rapidjson.h>
 
+//vrm
+namespace {
+void vrm_test() {
+    VRM::VRMMetadata *m = nullptr;
+    VRM::ReleaseVRMMeta(m);
+}
+} // namespace
+namespace VRM {
+void ReleaseVRMMeta(VRMMetadata *&meta) {
+    if (meta) {
+        delete meta;
+        meta = nullptr;
+    }
+}
+} // namespace VRM
+//vrm
+
 using namespace Assimp;
 using namespace glTF2;
 using namespace glTFCommon;
@@ -110,14 +127,16 @@ const aiImporterDesc *glTF2Importer::GetInfo() const {
 bool glTF2Importer::CanRead(const std::string &pFile, IOSystem *pIOHandler, bool /* checkSig */) const {
 	const std::string &extension = GetExtension(pFile);
 
-	if (extension != "gltf" && extension != "glb") {
-        return false;
-  }
+	if (extension != "gltf" && extension != "glb" && extension != "vrm"){
+	//if (extension != "gltf" && extension != "glb") {
+		return false;
+	}
 
 	if (pIOHandler) {
 		glTF2::Asset asset(pIOHandler);
-		asset.Load(pFile, extension == "glb");
-		std::string version = asset.asset.version;
+        //asset.Load(pFile, extension == "glb");
+        asset.Load(pFile, extension == "glb" || extension == "vrm");
+        std::string version = asset.asset.version;
 		return !version.empty() && version[0] == '2';
 	}
 
@@ -281,6 +300,9 @@ static aiMaterial *ImportMaterial(std::vector<int> &embeddedTexIdxs, Asset &r, M
 		aimat->AddProperty(&mat.unlit, 1, AI_MATKEY_GLTF_UNLIT);
 	}
 
+    //vrm
+    aimat->mShaderName = mat.shaderName;
+
 	return aimat;
 }
 
@@ -294,8 +316,11 @@ void glTF2Importer::ImportMaterials(glTF2::Asset &r) {
 	mScene->mMaterials[numImportedMaterials] = ImportMaterial(embeddedTexIdxs, r, defaultMaterial);
 
 	for (unsigned int i = 0; i < numImportedMaterials; ++i) {
-		mScene->mMaterials[i] = ImportMaterial(embeddedTexIdxs, r, r.materials[i]);
-	}
+		//mScene->mMaterials[i] = ImportMaterial(embeddedTexIdxs, r, r.materials[i]);
+        glTF2::Ref<glTF2::Material> ref = r.materials.Retrieve(i);
+        mScene->mMaterials[i] = ImportMaterial(embeddedTexIdxs, r, *ref);
+        mScene->mMaterials[i]->mShaderName = r.vrmdata.materialShaderName[mScene->mMaterials[i]->GetName().C_Str()];
+    }
 }
 
 static inline void SetFace(aiFace &face, int a) {
@@ -445,11 +470,14 @@ void glTF2Importer::ImportMeshes(glTF2::Asset &r) {
 					aiAnimMesh &aiAnimMesh = *(aim->mAnimMeshes[i]);
 					Mesh::Primitive::Target &target = targets[i];
 
+                    //vrm
+                    aiAnimMesh.mName = target.name;
+
 					if (target.position.size() > 0) {
 						aiVector3D *positionDiff = nullptr;
 						target.position[0]->ExtractData(positionDiff);
 						for (unsigned int vertexId = 0; vertexId < aim->mNumVertices; vertexId++) {
-							aiAnimMesh.mVertices[vertexId] += positionDiff[vertexId];
+							aiAnimMesh.mVertices[vertexId] = positionDiff[vertexId];
 						}
 						delete[] positionDiff;
 					}
@@ -457,7 +485,7 @@ void glTF2Importer::ImportMeshes(glTF2::Asset &r) {
 						aiVector3D *normalDiff = nullptr;
 						target.normal[0]->ExtractData(normalDiff);
 						for (unsigned int vertexId = 0; vertexId < aim->mNumVertices; vertexId++) {
-							aiAnimMesh.mNormals[vertexId] += normalDiff[vertexId];
+							aiAnimMesh.mNormals[vertexId] = normalDiff[vertexId];
 						}
 						delete[] normalDiff;
 					}
@@ -469,7 +497,7 @@ void glTF2Importer::ImportMeshes(glTF2::Asset &r) {
 						target.tangent[0]->ExtractData(tangentDiff);
 
 						for (unsigned int vertexId = 0; vertexId < aim->mNumVertices; ++vertexId) {
-							tangent[vertexId].xyz += tangentDiff[vertexId];
+							tangent[vertexId].xyz = tangentDiff[vertexId];
 							aiAnimMesh.mTangents[vertexId] = tangent[vertexId].xyz;
 							aiAnimMesh.mBitangents[vertexId] = (aiAnimMesh.mNormals[vertexId] ^ tangent[vertexId].xyz) * tangent[vertexId].w;
 						}
@@ -655,7 +683,17 @@ void glTF2Importer::ImportMeshes(glTF2::Asset &r) {
 
 			if (prim.material) {
 				aim->mMaterialIndex = prim.material.GetIndex();
-			} else {
+
+                for (int i = 0; i < r.materials.Size(); ++i) {
+                    glTF2::Ref<glTF2::Material> m = r.materials.Retrieve(i);
+
+                    if (m.GetIndex() == prim.material.GetIndex()) {
+                        aim->mMaterialIndex = i;
+                        break;
+                    }
+                }
+
+            } else {
 				aim->mMaterialIndex = mScene->mNumMaterials - 1;
 			}
 		}
@@ -978,7 +1016,7 @@ void glTF2Importer::ImportNodes(glTF2::Asset &r) {
 	if (numRootNodes == 1) { // a single root node: use it
 		mScene->mRootNode = ImportNode(mScene, r, meshOffsets, rootNodes[0]);
 	} else if (numRootNodes > 1) { // more than one root node: create a fake root
-		aiNode *root = new aiNode("ROOT");
+		aiNode *root = new aiNode("__ROOT");
 		root->mChildren = new aiNode *[numRootNodes];
 		for (unsigned int i = 0; i < numRootNodes; ++i) {
 			aiNode *node = ImportNode(mScene, r, meshOffsets, rootNodes[i]);
@@ -1279,6 +1317,8 @@ void glTF2Importer::ImportEmbeddedTextures(glTF2::Asset &r) {
 
 		aiTexture *tex = mScene->mTextures[idx] = new aiTexture();
 
+        tex->mFilename = img.uri;
+
 		size_t length = img.GetDataLength();
 		void *data = img.StealData();
 
@@ -1335,8 +1375,8 @@ void glTF2Importer::InternReadFile(const std::string &pFile, aiScene *pScene, IO
 
 	// read the asset file
 	glTF2::Asset asset(pIOHandler);
-	asset.Load(pFile, GetExtension(pFile) == "glb");
-
+	//asset.Load(pFile, GetExtension(pFile) == "glb");
+    asset.Load(pFile, GetExtension(pFile) == "glb" || GetExtension(pFile) == "vrm");
 	//
 	// Copy the data out
 	//
@@ -1352,6 +1392,34 @@ void glTF2Importer::InternReadFile(const std::string &pFile, aiScene *pScene, IO
 	ImportNodes(asset);
 
 	ImportAnimations(asset);
+
+    {
+        this->mScene->mVRMMeta = asset.vrmdata.vrmdata->CreateClone();
+        auto m = static_cast<VRM::VRMMetadata*>(mScene->mVRMMeta);
+
+        for (int i = 0; i < m->materialNum; ++i) {
+            auto& a = m->material[i].textureProperties;
+
+            struct TT {
+                int& value;
+            };
+            TT table[] = {
+                a._MainTex,
+                a._ShadeTexture,
+                a._BumpMap,
+                a._RimTexture,
+                a._SphereAdd,
+                a._EmissionMap,
+                a._OutlineWidthTexture,
+                a._UvAnimMaskTexture,
+            };
+
+            for (auto& t : table) {
+                if (t.value < 0) continue;
+                t.value = embeddedTexIdxs[t.value];
+            }
+        }
+    }
 
     ImportCommonMetadata(asset);
 

@@ -119,7 +119,7 @@ ASSIMP_API const char *aiGetBranchName() {
 
 // ------------------------------------------------------------------------------------------------
 ASSIMP_API aiScene::aiScene() :
-        mFlags(0), mRootNode(nullptr), mNumMeshes(0), mMeshes(nullptr), mNumMaterials(0), mMaterials(nullptr), mNumAnimations(0), mAnimations(nullptr), mNumTextures(0), mTextures(nullptr), mNumLights(0), mLights(nullptr), mNumCameras(0), mCameras(nullptr), mMetaData(nullptr), mPrivate(new Assimp::ScenePrivateData()) {
+        mFlags(0), mRootNode(nullptr), mNumMeshes(0), mMeshes(nullptr), mNumMaterials(0), mMaterials(nullptr), mNumAnimations(0), mAnimations(nullptr), mNumTextures(0), mTextures(nullptr), mNumLights(0), mLights(nullptr), mNumCameras(0), mCameras(nullptr), mMetaData(nullptr), mVRMMeta(nullptr), mPrivate(new Assimp::ScenePrivateData()) {
     // empty
 }
 

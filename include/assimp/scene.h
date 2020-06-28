@@ -134,6 +134,8 @@ struct ASSIMP_API aiNode
       */
     C_STRUCT aiMetadata* mMetaData;
 
+    void *mVRMMeta;
+
 #ifdef __cplusplus
     /** Constructor */
     aiNode();
@@ -341,6 +343,7 @@ struct aiScene
      */
     C_STRUCT aiMetadata* mMetaData;
 
+    void *mVRMMeta;
 
 #ifdef __cplusplus
 
