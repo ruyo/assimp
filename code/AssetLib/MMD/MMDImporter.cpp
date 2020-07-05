@@ -260,6 +260,11 @@ void MMDImporter::CreateDataFromImport(const pmx::PmxModel *pModel,
 
         if (bone.parent_index < 0) {
             pScene->mRootNode->addChildren(1, ppNode.get() + i);
+            aiVector3D v3 = aiVector3D(
+                bone.position[0],
+                bone.position[1],
+                bone.position[2]);
+            aiMatrix4x4::Translation(v3, ppNode[i]->mTransformation);
         } else {
             ppNode[bone.parent_index]->addChildren(1, ppNode.get() + i);
 
