@@ -54,6 +54,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <assimp/CreateAnimMesh.h>
 
 #include <fstream>
+#include <streambuf>
 #include <iomanip>
 #include <memory>
 
@@ -67,6 +68,16 @@ static const aiImporterDesc desc = { "MMD Importer",
     0,
     0,
     "pmx" };
+
+namespace {
+    struct membuf : std::streambuf
+    {
+        membuf(char* begin, char* end) {
+            this->setg(begin, begin, end);
+        }
+    };
+}
+
 
 namespace Assimp {
 
@@ -107,23 +118,27 @@ const aiImporterDesc *MMDImporter::GetInfo() const {
 
 // ------------------------------------------------------------------------------------------------
 //  MMD import implementation
-void MMDImporter::InternReadFile(const std::string &file, aiScene *pScene,
-        IOSystem * /*pIOHandler*/) {
-    // Read file by istream
-    std::filebuf fb;
-    if (!fb.open(file, std::ios::in | std::ios::binary)) {
-        throw DeadlyImportError("Failed to open file " + file + ".");
+void MMDImporter::InternReadFile(const std::string &pFile, aiScene *pScene,
+        IOSystem * pIOHandler) {
+
+    {
     }
 
-    std::istream fileStream(&fb);
+    std::unique_ptr<IOStream> file(pIOHandler->Open(pFile, "rb"));
 
-    // Get the file-size and validate it, throwing an exception when fails
-    fileStream.seekg(0, fileStream.end);
-    size_t fileSize = static_cast<size_t>(fileStream.tellg());
-    fileStream.seekg(0, fileStream.beg);
+    if (file.get() == NULL)
+        throw DeadlyImportError("Failed to open MMD file " + pFile + "");
+
+    size_t fileSize = file->FileSize();
+
+    std::vector<char> mBuffer2(fileSize);
+    file->Read(&mBuffer2[0], 1, fileSize);
+    membuf sBuf(&(mBuffer2[0]), (&mBuffer2[0]) + fileSize);
+
+    std::istream fileStream(&sBuf);
 
     if (fileSize < sizeof(pmx::PmxModel)) {
-        throw DeadlyImportError(file + " is too small.");
+        throw DeadlyImportError(pFile + " is too small.");
     }
 
     pmx::PmxModel model;
