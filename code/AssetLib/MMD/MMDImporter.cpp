@@ -440,7 +440,7 @@ aiMaterial *MMDImporter::CreateMaterial(const pmx::PmxMaterial *pMat,
         const pmx::PmxModel *pModel) {
     aiMaterial *mat = new aiMaterial();
     aiString name(pMat->material_name);
-    if (pMat->material_english_name.size() != 0) {
+    if (pMat->material_name.size() == 0) {
         name = pMat->material_english_name;
     }
     mat->AddProperty(&name, AI_MATKEY_NAME);
