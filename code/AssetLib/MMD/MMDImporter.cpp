@@ -234,8 +234,6 @@ void MMDImporter::CreateDataFromImport(const pmx::PmxModel *pModel,
                 aiAnimMesh.mName = morph.morph_name;
 
                 if (morph.vertex_offsets.get() != nullptr) {
-                    aiVector3D dif;
-
                     for (int vertexId = 0; vertexId < morph.offset_count; vertexId++) {
                         const auto& ver = morph.vertex_offsets[vertexId];
                         const int targetIndex = ver.vertex_index;
@@ -441,7 +439,10 @@ aiMesh *MMDImporter::CreateMesh(const pmx::PmxModel *pModel,
 aiMaterial *MMDImporter::CreateMaterial(const pmx::PmxMaterial *pMat,
         const pmx::PmxModel *pModel) {
     aiMaterial *mat = new aiMaterial();
-    aiString name(pMat->material_english_name);
+    aiString name(pMat->material_name);
+    if (pMat->material_english_name.size() != 0) {
+        name = pMat->material_english_name;
+    }
     mat->AddProperty(&name, AI_MATKEY_NAME);
 
     aiColor3D diffuse(pMat->diffuse[0], pMat->diffuse[1], pMat->diffuse[2]);
