@@ -1590,10 +1590,10 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
                     s.boneNum = v->Size();
                     s.bones = new int[s.boneNum];
                     s.bones_name = new aiString[s.boneNum];
-                    for (unsigned int i2 = 0; i2 < v->Size(); ++i) {
+                    for (unsigned int i2 = 0; i2 < v->Size(); ++i2) {
                         int j = (*v)[i2].GetInt();
                         s.bones[i2] = j;
-                        Ref<Node> chn = r.nodes.Retrieve(s.bones[i]);
+                        Ref<Node> chn = r.nodes.Retrieve(s.bones[i2]);
                         s.bones_name[i2] = chn->name;
                     }
                 }
