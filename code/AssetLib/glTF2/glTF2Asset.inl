@@ -890,6 +890,9 @@ inline void Image::Read(Value &obj, Asset &r) {
             throw DeadlyImportError("GLTF2: ", getContextForErrorMessages(id, name), " should have either a URI of a bufferView and mimetype" );
         }
     }
+    if (Value* v = FindMember(obj, "name")) {
+        uri = v->GetString();
+    }
 }
 
 inline uint8_t *Image::StealData() {
@@ -1027,6 +1030,11 @@ inline void Material::Read(Value &material, Asset &r) {
     ReadMember(material, "doubleSided", this->doubleSided);
     ReadMember(material, "alphaMode", this->alphaMode);
     ReadMember(material, "alphaCutoff", this->alphaCutoff);
+
+    ReadMember(material, "shader", this->shaderName);
+    if (Value* v = FindMember(material, "shader")) {
+        this->shaderName = *v->GetString();
+    }
 
     if (Value *extensions = FindObject(material, "extensions")) {
         if (r.extensionsUsed.KHR_materials_pbrSpecularGlossiness) {
@@ -1235,6 +1243,19 @@ inline void Mesh::Read(Value &pJSON_Object, Asset &pAsset_Root) {
                             }
                             (*vec)[idx] = pAsset_Root.accessors.Retrieve(it->value.GetUint());
                         }
+                        if (Value* v1 = FindMember(target, "extra")) {
+                            if (Value* v2 = FindMember(*v1, "name")) {
+                                prim.targets[i].name = v2->GetString();
+                            }
+                        }
+                    }
+                }
+                // ex name
+                if (Value* ex = FindObject(primitive, "extras")) {
+                    if (Value* t = FindArray(*ex, "targetNames")) {
+                        for (uint32_t j = 0; j < t->Size(); ++j) {
+                            prim.targets[j].name = (*t)[j].GetString();
+                        }
                     }
                 }
             }
@@ -1403,12 +1424,27 @@ inline void Node::Read(Value &obj, Asset &r) {
 
     Value *curMesh = FindUInt(obj, "mesh");
     if (nullptr != curMesh) {
-        unsigned int numMeshes = 1;
+        //unsigned int numMeshes = 1;
+
+        unsigned int cc = (*curMesh).GetUint();
+        // cache meshes
+        for (unsigned int i = 0; i < cc; ++i) {
+            Ref<Mesh> tmp = r.meshes.Retrieve(i);
+            //do not delete!
+        }
+        Ref<Mesh> meshRef = r.meshes.Retrieve(cc);
+
+        if (this->meshes.size() == 0) {
+            if (meshRef) this->meshes.push_back(meshRef);
+        }
+
+        /*
         this->meshes.reserve(numMeshes);
         Ref<Mesh> meshRef = r.meshes.Retrieve((*curMesh).GetUint());
         if (meshRef) {
             this->meshes.push_back(meshRef);
         }
+        */
     }
 
 	// Do not retrieve a skin here, just take a reference, to avoid infinite recursion
@@ -1475,6 +1511,354 @@ inline void Skin::Read(Value &obj, Asset &r) {
         }
     }
 }
+
+//vrm
+static std::vector<std::string> shapeBlend = {
+    "Neutral","A","I","U","E","O","Blink","Joy","Angry","Sorrow","Fun","LookUp","LookDown","LookLeft","LookRight","Blink_L","Blink_R",
+};
+
+static std::vector<std::string> humanBoneNameList = {
+    "hips",
+    "leftUpperLeg","rightUpperLeg","leftLowerLeg","rightLowerLeg",
+    "leftFoot","rightFoot",
+    "spine","chest","neck","head",
+    "leftShoulder","rightShoulder","leftUpperArm","rightUpperArm",
+    "leftLowerArm","rightLowerArm","leftHand","rightHand","leftToes","rightToes",
+    "leftEye","rightEye","jaw",
+    "leftThumbProximal","leftThumbIntermediate","leftThumbDistal","leftIndexProximal",
+    "leftIndexIntermediate","leftIndexDistal","leftMiddleProximal","leftMiddleIntermediate",
+    "leftMiddleDistal","leftRingProximal","leftRingIntermediate","leftRingDistal","leftLittleProximal","leftLittleIntermediate","leftLittleDistal",
+    "rightThumbProximal","rightThumbIntermediate","rightThumbDistal","rightIndexProximal",
+    "rightIndexIntermediate","rightIndexDistal","rightMiddleProximal","rightMiddleIntermediate",
+    "rightMiddleDistal","rightRingProximal","rightRingIntermediate","rightRingDistal","rightLittleProximal",
+    "rightLittleIntermediate","rightLittleDistal","upperChest",
+};
+
+static std::string getNodeNameFromMesh(std::string meshName, Asset& r) {
+
+    for (unsigned int i = 0; i < r.nodes.Size(); ++i) {
+        Ref<Node> node = r.nodes.Retrieve(i);
+        for (auto& mm : node->meshes) {
+            if (mm->name == meshName) {
+                return node->name;
+            }
+        }
+    }
+    return "";
+}
+
+inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
+{
+    vrmdata = new VRM::VRMMetadata();
+
+
+    Value* ext = FindObject(doc, "extensions");
+    if (ext == nullptr) {
+        return;
+    }
+    Value* vrm = FindObject(*ext, "VRM");
+    if (vrm == nullptr) {
+        return;
+    }
+
+    if (Value* sec = FindObject(*vrm, "secondaryAnimation")) {
+        if (Value* nodeArray = FindArray(*sec, "boneGroups")) {
+            vrmdata->springNum = nodeArray->Size();
+            vrmdata->springs = new VRM::VRMSpring[vrmdata->springNum];
+            for (unsigned int i = 0; i < nodeArray->Size(); ++i) {
+                VRM::VRMSpring& s = vrmdata->springs[i];
+                // warning! stiffiness in VRM  <- stiffness in member
+                if (Value* v = FindMember((*nodeArray)[i], "stiffiness")) {
+                    s.stiffness = v->GetFloat();
+                }
+                if (Value* v = FindMember((*nodeArray)[i], "gravityPower")) {
+                    s.gravityPower = v->GetFloat();
+                }
+                if (Value* v = FindObject((*nodeArray)[i], "gravityDir")) {
+                    s.gravityDir[0] = FindMember(*v, "x")->GetFloat();
+                    s.gravityDir[1] = FindMember(*v, "y")->GetFloat();
+                    s.gravityDir[2] = FindMember(*v, "z")->GetFloat();
+                }
+
+                if (Value* v = FindMember((*nodeArray)[i], "dragForce")) {
+                    s.dragForce = v->GetFloat();
+                }
+                if (Value* v = FindMember((*nodeArray)[i], "hitRadius")) {
+                    s.hitRadius = v->GetFloat();
+                }
+                if (Value* v = FindArray((*nodeArray)[i], "bones")) {
+                    s.boneNum = v->Size();
+                    s.bones = new int[s.boneNum];
+                    s.bones_name = new aiString[s.boneNum];
+                    for (unsigned int i2 = 0; i2 < v->Size(); ++i) {
+                        int j = (*v)[i2].GetInt();
+                        s.bones[i2] = j;
+                        Ref<Node> chn = r.nodes.Retrieve(s.bones[i]);
+                        s.bones_name[i2] = chn->name;
+                    }
+                }
+                if (Value* v = FindMember((*nodeArray)[i], "colliderGroups")) {
+                    s.colliderGourpNum = v->Size();
+                    s.colliderGroups = new int[s.colliderGourpNum];
+                    for (unsigned int i2 = 0; i2 < v->Size(); ++i2) {
+                        int j = (*v)[i2].GetInt();
+                        s.colliderGroups[i2] = j;
+                    }
+                }
+            }
+        }
+        if (Value* nodeArray = FindArray(*sec, "colliderGroups")) {
+            vrmdata->colliderGroupNum = nodeArray->Size();
+            vrmdata->colliderGroups = new VRM::VRMColliderGroup[vrmdata->colliderGroupNum];
+            for (unsigned int i = 0; i < nodeArray->Size(); ++i) {
+                VRM::VRMColliderGroup& g = vrmdata->colliderGroups[i];
+                g.node = FindMember((*nodeArray)[i], "node")->GetInt();
+
+                Ref<Node> chn = r.nodes.Retrieve(g.node);
+                g.node_name = chn->name;
+                //g.node_name = r.nodes[g.node].Name;
+
+                if (Value* cArray = FindArray((*nodeArray)[i], "colliders")) {
+                    g.colliderNum = cArray->Size();
+                    g.colliders = new VRM::VRMCollider[g.colliderNum];
+                    for (unsigned int ic = 0; ic < cArray->Size(); ++ic) {
+                        VRM::VRMCollider& c = g.colliders[ic];
+                        if (Value* v = FindObject((*cArray)[ic], "offset")) {
+                            c.offset[0] = FindMember((*v), "x")->GetFloat();
+                            c.offset[1] = FindMember((*v), "y")->GetFloat();
+                            c.offset[2] = FindMember((*v), "z")->GetFloat();
+                        }
+                        c.radius = FindMember((*cArray)[ic], "radius")->GetFloat();
+                        //g.colliders.push_back(c);
+                    }
+                }
+            }
+        }
+    }
+
+    if (Value* mp = FindArray(*vrm, "materialProperties")) {
+        vrmdata->materialNum = mp->Size();
+        vrmdata->material = new VRM::VRMMaterial[vrmdata->materialNum];
+        memset(vrmdata->material, 0, sizeof(VRM::VRMMaterial) * vrmdata->materialNum);
+
+        for (uint32_t m = 0; m < mp->Size(); ++m) {
+            std::string name, shaderName;
+            if (Value* v = FindMember((*mp)[m], "name")) {
+                name = v->GetString();
+            }
+            if (Value* v = FindMember((*mp)[m], "shader")) {
+                shaderName = v->GetString();
+            }
+            materialShaderName.insert(std::make_pair(name, shaderName));
+
+            auto& mat = vrmdata->material[m];
+            auto& pro_f = mat.floatProperties;
+            auto& pro_v = mat.vectorProperties;
+            auto& pro_t = mat.textureProperties;
+            mat.name = name;
+            mat.shaderName = shaderName;
+
+            {
+                // scalar
+                struct TT {
+                    std::string key;
+                    float& value;
+                };
+                TT table[] = {
+                    "_Cutoff",		pro_f._Cutoff,
+                    "_BumpScale",	pro_f._BumpScale,
+                    "_ReceiveShadowRate",	pro_f._ReceiveShadowRate,
+                    "_ShadeShift",			pro_f._ShadeShift,
+                    "_ShadeToony",			pro_f._ShadeToony,
+                    "_LightColorAttenuation",	pro_f._LightColorAttenuation,
+                    "_IndirectLightIntensity",	pro_f._IndirectLightIntensity,
+                    "_RimLightingMix",			pro_f._RimLightingMix,
+                    "_RimFresnelPower",			pro_f._RimFresnelPower,
+                    "_RimLift",					pro_f._RimLift,
+                    "_OutlineWidth",			pro_f._OutlineWidth,
+                    "_OutlineScaledMaxDistance",	pro_f._OutlineScaledMaxDistance,
+                    "_OutlineLightingMix",			pro_f._OutlineLightingMix,
+                    "_UvAnimScrollX",				pro_f._UvAnimScrollX,
+                    "_UvAnimScrollY",				pro_f._UvAnimScrollY,
+                    "_UvAnimRotation",				pro_f._UvAnimRotation,
+                    "_MToonVersion",				pro_f._MToonVersion,
+                    "_DebugMode",				pro_f._DebugMode,
+                    "_BlendMode",				pro_f._BlendMode,
+                    "_OutlineWidthMode",		pro_f._OutlineWidthMode,
+                    "_OutlineColorMode",	pro_f._OutlineColorMode,
+                    "_CullMode",			pro_f._CullMode,
+                    "_OutlineCullMode",		pro_f._OutlineCullMode,
+                    "_SrcBlend",			pro_f._SrcBlend,
+                    "_DstBlend",			pro_f._DstBlend,
+                    "_ZWrite",				pro_f._ZWrite,
+                };
+                if (Value* p = FindObject((*mp)[m], "floatProperties")) {
+                    for (auto& t : table) {
+                        ReadMember(*p, t.key.c_str(), t.value);
+                    }
+                }
+            }
+            {
+                // vector
+                struct TT {
+                    std::string key;
+                    vec4& value;
+                };
+                TT table[] = {
+                    "_Color",			pro_v._Color,
+                    "_ShadeColor",		pro_v._ShadeColor,
+                    "_MainTex",			pro_v._MainTex,
+                    "_ShadeTexture",	pro_v._ShadeTexture,
+                    "_BumpMap",			pro_v._BumpMap,
+                    "_ReceiveShadowTexture",	pro_v._ReceiveShadowTexture,
+                    "_ShadingGradeTexture",		pro_v._ShadingGradeTexture,
+                    "_RimColor",				pro_v._RimColor,
+                    "_RimTexture",				pro_v._RimTexture,
+                    "_SphereAdd",				pro_v._SphereAdd,
+                    "_EmissionColor",			pro_v._EmissionColor,
+                    "_EmissionMap",				pro_v._EmissionMap,
+                    "_OutlineWidthTexture",		pro_v._OutlineWidthTexture,
+                    "_OutlineColor",			pro_v._OutlineColor,
+                    "_UvAnimMaskTexture",		pro_v._UvAnimMaskTexture,
+                };
+                if (Value* p = FindObject((*mp)[m], "vectorProperties")) {
+                    for (auto& t : table) {
+                        ReadMember(*p, t.key.c_str(), t.value);
+                    }
+                }
+            }
+            {
+                // texture index
+                struct TT {
+                    std::string key;
+                    int& value;
+                };
+                TT table[] = {
+                    "_MainTex",				pro_t._MainTex,
+                    "_ShadeTexture",		pro_t._ShadeTexture,
+                    "_BumpMap",				pro_t._BumpMap,
+                    "_ReceiveShadowTexture",pro_t._ReceiveShadowTexture,
+                    "_ShadingGradeTexture",	pro_t._ShadingGradeTexture,
+                    "_RimTexture",			pro_t._RimTexture,
+                    "_SphereAdd",			pro_t._SphereAdd,
+                    "_EmissionMap",			pro_t._EmissionMap,
+                    "_OutlineWidthTexture", pro_t._OutlineWidthTexture,
+                    "_UvAnimMaskTexture",	pro_t._UvAnimMaskTexture,
+                };
+                if (Value* p = FindObject((*mp)[m], "textureProperties")) {
+                    for (auto& t : table) {
+                        if (ReadMember(*p, t.key.c_str(), t.value)) {
+                        } else {
+                            t.value = -1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (1) {
+        if (Value* meta = FindObject(*vrm, "meta")) {
+            std::string target[] = {
+                "version","author","contactInformation","reference",
+                "title", "texture",
+                "allowedUserName",
+                "violentUssageName","sexualUssageName","commercialUssageName",
+                "otherPermissionUrl","licenseName","otherLicenseUrl"
+            };
+            auto& lic = vrmdata->license;
+            lic.licensePairNum = VRM::LIC_max;
+            lic.licensePair = new VRM::VRMLicensePair[lic.licensePairNum];
+            int min = sizeof(target) / sizeof(target[0]);
+            min = (min < VRM::LIC_max) ? min : VRM::LIC_max;
+            for (int i = 0; i < min; ++i) {
+                if (Value* v = FindMember(*meta, target[i].c_str())) {
+                    lic.licensePair[i].Key = target[i];
+
+                    if (i == VRM::LIC_texture) {
+                        lic.licensePair[i].Value = std::to_string(v->GetInt());
+                    } else {
+                        lic.licensePair[i].Value = v->GetString();
+                    }
+                }
+            }
+            lic.licensePair[VRM::LIC_futter].Key = "vrm4u_futter";
+            lic.licensePair[VRM::LIC_futter].Value = "vrm4u_futter";
+        }
+    }
+
+    if (Value* human = FindObject(*vrm, "humanoid")) {
+        if (Value* hb = FindArray(*human, "humanBones")) {
+            for (uint32_t b = 0; b < hb->Size(); ++b) {
+                std::string s;
+                ReadMember((*hb)[b], "bone", s);
+
+                for (auto a : humanBoneNameList) {
+                    if (a != s) {
+                        continue;
+                    }
+                    vrmdata->humanoidBone[b].humanBoneName = s.c_str();
+
+                    int i;
+                    ReadMember((*hb)[b], "node", i);
+                    vrmdata->humanoidBone[b].nodeName = r.nodes.Retrieve(i)->name;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (Value* blendMaster = FindObject(*vrm, "blendShapeMaster")) {
+        if (Value* bsg = FindArray(*blendMaster, "blendShapeGroups")) {
+
+            vrmdata->blensShapeGroupNum = bsg->Size();
+            vrmdata->blensShapeGourp = new VRM::VRMBlendShapeGroup[vrmdata->blensShapeGroupNum];
+            for (uint32_t iBsg = 0; iBsg < bsg->Size(); ++iBsg) {
+                std::string s;
+                ReadMember((*bsg)[iBsg], "name", s);
+
+                for (auto a : shapeBlend) {
+                    if (a != s) {
+                        continue;
+                    }
+                    auto& shapeGroup = vrmdata->blensShapeGourp[iBsg];
+                    shapeGroup.groupName = s.c_str();
+
+                    Value* binds = FindArray((*bsg)[iBsg], "binds");
+
+                    shapeGroup.bindNum = binds->Size();
+                    shapeGroup.bind = new VRM::VRMBlendShapeBind[shapeGroup.bindNum];
+
+                    for (int iBind = 0; iBind < shapeGroup.bindNum; ++iBind) {
+                        auto& bi = shapeGroup.bind[iBind];
+
+                        ReadMember((*binds)[iBind], "mesh", bi.meshID);
+                        ReadMember((*binds)[iBind], "index", bi.shapeIndex);
+                        ReadMember((*binds)[iBind], "weight", bi.weight);
+
+                        Ref<Mesh> mp = r.meshes.Retrieve(bi.meshID);
+                        int offset = 0;
+                        for (int tmp = 0; tmp < bi.meshID; ++tmp) {
+                            Ref<Mesh> mp2 = r.meshes.Retrieve(tmp);
+                            offset += (int)(mp2->primitives.size()) - 1;
+                        }
+
+                        bi.meshID += offset;
+                        bi.meshName = mp->name;
+
+                        bi.nodeName = getNodeNameFromMesh(bi.meshName.C_Str(), r).c_str();
+
+
+                        bi.blendShapeName = mp->primitives[0].targets[bi.shapeIndex].name;
+
+                    }
+                }
+            }
+        }
+    }
+}
+//vrm
+
+
 
 inline void Animation::Read(Value &obj, Asset &r) {
     Value *curSamplers = FindArray(obj, "samplers");
@@ -1711,9 +2095,49 @@ inline void Asset::Load(const std::string &pFile, bool isBinary) {
         sceneIndex = curScene->GetUint();
     }
 
+    {
+        //if (Value* skinsArray = FindArray(doc, "skins")) {
+    //		skins.Retrieve(0);
+    //	}
+    }
+    if (Value* im = FindArray(doc, "images")) {
+        for (unsigned int m = 0; m < im->Size(); ++m) {
+            images.Retrieve(m);
+        }
+    }
+
+    if (Value* nodeArray = FindArray(doc, "nodes")) {
+        for (unsigned int  i = 0; i < nodeArray->Size(); ++i) {
+            nodes.Retrieve(i);
+        }
+    }
+    if (Value* nodeArray = FindArray(doc, "accessors")) {
+        for (unsigned int  i = 0; i < nodeArray->Size(); ++i) {
+            accessors.Retrieve(i);
+        }
+    }
+    if (Value* nodeArray = FindArray(doc, "skins")) {
+        for (unsigned int  i = 0; i < nodeArray->Size(); ++i) {
+            skins.Retrieve(i);
+        }
+    }
+
+    {
+        if (Value* animMeshesArray = FindArray(doc, "animations")) {
+            animations.Retrieve(0);
+        }
+    }
+
+
     if (Value *scenesArray = FindArray(doc, "scenes")) {
         if (sceneIndex < scenesArray->Size()) {
             this->scene = scenes.Retrieve(sceneIndex);
+        }
+    }
+
+    if (Value* materialsArray = FindArray(doc, "materials")) {
+        for (unsigned int i = 0; i < materialsArray->Size(); ++i) {
+            this->materials.Retrieve(i);
         }
     }
 
@@ -1732,6 +2156,17 @@ inline void Asset::Load(const std::string &pFile, bool isBinary) {
     // Clean up
     for (size_t i = 0; i < mDicts.size(); ++i) {
         mDicts[i]->DetachFromDocument();
+    }
+
+    // call last!!
+    {
+        {
+            for (unsigned int i = 0; i < nodes.Size(); ++i) {
+                printf("%s\n", nodes[i].name.c_str());
+                printf("%s\n", nodes[i].id.c_str());
+            }
+        }
+        vrmdata.Read(doc, *this);
     }
 }
 
