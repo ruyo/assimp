@@ -1430,6 +1430,7 @@ inline void Node::Read(Value &obj, Asset &r) {
         // cache meshes
         for (unsigned int i = 0; i < cc; ++i) {
             Ref<Mesh> tmp = r.meshes.Retrieve(i);
+            (void)tmp;
             //do not delete!
         }
         Ref<Mesh> meshRef = r.meshes.Retrieve(cc);
@@ -1665,32 +1666,32 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
                     float& value;
                 };
                 TT table[] = {
-                    "_Cutoff",		pro_f._Cutoff,
-                    "_BumpScale",	pro_f._BumpScale,
-                    "_ReceiveShadowRate",	pro_f._ReceiveShadowRate,
-                    "_ShadeShift",			pro_f._ShadeShift,
-                    "_ShadeToony",			pro_f._ShadeToony,
-                    "_LightColorAttenuation",	pro_f._LightColorAttenuation,
-                    "_IndirectLightIntensity",	pro_f._IndirectLightIntensity,
-                    "_RimLightingMix",			pro_f._RimLightingMix,
-                    "_RimFresnelPower",			pro_f._RimFresnelPower,
-                    "_RimLift",					pro_f._RimLift,
-                    "_OutlineWidth",			pro_f._OutlineWidth,
-                    "_OutlineScaledMaxDistance",	pro_f._OutlineScaledMaxDistance,
-                    "_OutlineLightingMix",			pro_f._OutlineLightingMix,
-                    "_UvAnimScrollX",				pro_f._UvAnimScrollX,
-                    "_UvAnimScrollY",				pro_f._UvAnimScrollY,
-                    "_UvAnimRotation",				pro_f._UvAnimRotation,
-                    "_MToonVersion",				pro_f._MToonVersion,
-                    "_DebugMode",				pro_f._DebugMode,
-                    "_BlendMode",				pro_f._BlendMode,
-                    "_OutlineWidthMode",		pro_f._OutlineWidthMode,
-                    "_OutlineColorMode",	pro_f._OutlineColorMode,
-                    "_CullMode",			pro_f._CullMode,
-                    "_OutlineCullMode",		pro_f._OutlineCullMode,
-                    "_SrcBlend",			pro_f._SrcBlend,
-                    "_DstBlend",			pro_f._DstBlend,
-                    "_ZWrite",				pro_f._ZWrite,
+                    {"_Cutoff",		pro_f._Cutoff},
+                    {"_BumpScale",	pro_f._BumpScale},
+                    {"_ReceiveShadowRate",	pro_f._ReceiveShadowRate},
+                    {"_ShadeShift",			pro_f._ShadeShift},
+                    {"_ShadeToony",			pro_f._ShadeToony},
+                    {"_LightColorAttenuation",	pro_f._LightColorAttenuation},
+                    {"_IndirectLightIntensity",	pro_f._IndirectLightIntensity},
+                    {"_RimLightingMix",			pro_f._RimLightingMix},
+                    {"_RimFresnelPower",			pro_f._RimFresnelPower},
+                    {"_RimLift",					pro_f._RimLift},
+                    {"_OutlineWidth",			pro_f._OutlineWidth},
+                    {"_OutlineScaledMaxDistance",	pro_f._OutlineScaledMaxDistance},
+                    {"_OutlineLightingMix",			pro_f._OutlineLightingMix},
+                    {"_UvAnimScrollX",				pro_f._UvAnimScrollX},
+                    {"_UvAnimScrollY",				pro_f._UvAnimScrollY},
+                    {"_UvAnimRotation",				pro_f._UvAnimRotation},
+                    {"_MToonVersion",				pro_f._MToonVersion},
+                    {"_DebugMode",				pro_f._DebugMode},
+                    {"_BlendMode",				pro_f._BlendMode},
+                    {"_OutlineWidthMode",		pro_f._OutlineWidthMode},
+                    {"_OutlineColorMode",	pro_f._OutlineColorMode},
+                    {"_CullMode",			pro_f._CullMode},
+                    {"_OutlineCullMode",		pro_f._OutlineCullMode},
+                    {"_SrcBlend",			pro_f._SrcBlend},
+                    {"_DstBlend",			pro_f._DstBlend},
+                    {"_ZWrite",				pro_f._ZWrite},
                 };
                 if (Value* p = FindObject((*mp)[m], "floatProperties")) {
                     for (auto& t : table) {
@@ -1705,21 +1706,21 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
                     vec4& value;
                 };
                 TT table[] = {
-                    "_Color",			pro_v._Color,
-                    "_ShadeColor",		pro_v._ShadeColor,
-                    "_MainTex",			pro_v._MainTex,
-                    "_ShadeTexture",	pro_v._ShadeTexture,
-                    "_BumpMap",			pro_v._BumpMap,
-                    "_ReceiveShadowTexture",	pro_v._ReceiveShadowTexture,
-                    "_ShadingGradeTexture",		pro_v._ShadingGradeTexture,
-                    "_RimColor",				pro_v._RimColor,
-                    "_RimTexture",				pro_v._RimTexture,
-                    "_SphereAdd",				pro_v._SphereAdd,
-                    "_EmissionColor",			pro_v._EmissionColor,
-                    "_EmissionMap",				pro_v._EmissionMap,
-                    "_OutlineWidthTexture",		pro_v._OutlineWidthTexture,
-                    "_OutlineColor",			pro_v._OutlineColor,
-                    "_UvAnimMaskTexture",		pro_v._UvAnimMaskTexture,
+                    {"_Color",			pro_v._Color},
+                    {"_ShadeColor",		pro_v._ShadeColor},
+                    {"_MainTex",			pro_v._MainTex},
+                    {"_ShadeTexture",	pro_v._ShadeTexture},
+                    {"_BumpMap",			pro_v._BumpMap},
+                    {"_ReceiveShadowTexture",	pro_v._ReceiveShadowTexture},
+                    {"_ShadingGradeTexture",		pro_v._ShadingGradeTexture},
+                    {"_RimColor",				pro_v._RimColor},
+                    {"_RimTexture",				pro_v._RimTexture},
+                    {"_SphereAdd",				pro_v._SphereAdd},
+                    {"_EmissionColor",			pro_v._EmissionColor},
+                    {"_EmissionMap",				pro_v._EmissionMap},
+                    {"_OutlineWidthTexture",		pro_v._OutlineWidthTexture},
+                    {"_OutlineColor",			pro_v._OutlineColor},
+                    {"_UvAnimMaskTexture",		pro_v._UvAnimMaskTexture},
                 };
                 if (Value* p = FindObject((*mp)[m], "vectorProperties")) {
                     for (auto& t : table) {
@@ -1734,16 +1735,16 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
                     int& value;
                 };
                 TT table[] = {
-                    "_MainTex",				pro_t._MainTex,
-                    "_ShadeTexture",		pro_t._ShadeTexture,
-                    "_BumpMap",				pro_t._BumpMap,
-                    "_ReceiveShadowTexture",pro_t._ReceiveShadowTexture,
-                    "_ShadingGradeTexture",	pro_t._ShadingGradeTexture,
-                    "_RimTexture",			pro_t._RimTexture,
-                    "_SphereAdd",			pro_t._SphereAdd,
-                    "_EmissionMap",			pro_t._EmissionMap,
-                    "_OutlineWidthTexture", pro_t._OutlineWidthTexture,
-                    "_UvAnimMaskTexture",	pro_t._UvAnimMaskTexture,
+                    {"_MainTex",				pro_t._MainTex},
+                    {"_ShadeTexture",		pro_t._ShadeTexture},
+                    {"_BumpMap",				pro_t._BumpMap},
+                    {"_ReceiveShadowTexture",pro_t._ReceiveShadowTexture},
+                    {"_ShadingGradeTexture",	pro_t._ShadingGradeTexture},
+                    {"_RimTexture",			pro_t._RimTexture},
+                    {"_SphereAdd",			pro_t._SphereAdd},
+                    {"_EmissionMap",			pro_t._EmissionMap},
+                    {"_OutlineWidthTexture", pro_t._OutlineWidthTexture},
+                    {"_UvAnimMaskTexture",	pro_t._UvAnimMaskTexture},
                 };
                 if (Value* p = FindObject((*mp)[m], "textureProperties")) {
                     for (auto& t : table) {

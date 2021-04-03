@@ -64,10 +64,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //vrm
 namespace {
-    void vrm_test() {
-        VRM::VRMMetadata* m = nullptr;
-        VRM::ReleaseVRMMeta(m);
-    }
+    //void vrm_test() {
+    //    VRM::VRMMetadata* m = nullptr;
+    //    VRM::ReleaseVRMMeta(m);
+    //}
 } // namespace
 namespace VRM {
     void ReleaseVRMMeta(VRMMetadata*& meta) {
@@ -1569,14 +1569,14 @@ void glTF2Importer::InternReadFile(const std::string &pFile, aiScene *pScene, IO
                 int& value;
             };
             TT table[] = {
-                a._MainTex,
-                a._ShadeTexture,
-                a._BumpMap,
-                a._RimTexture,
-                a._SphereAdd,
-                a._EmissionMap,
-                a._OutlineWidthTexture,
-                a._UvAnimMaskTexture,
+                {a._MainTex},
+                {a._ShadeTexture},
+                {a._BumpMap},
+                {a._RimTexture},
+                {a._SphereAdd},
+                {a._EmissionMap},
+                {a._OutlineWidthTexture},
+                {a._UvAnimMaskTexture},
             };
 
             for (auto& t : table) {
