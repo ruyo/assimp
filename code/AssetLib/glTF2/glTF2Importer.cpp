@@ -65,20 +65,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <rapidjson/rapidjson.h>
 
 //vrm
-namespace {
-    //void vrm_test() {
-    //    VRM::VRMMetadata* m = nullptr;
-    //    VRM::ReleaseVRMMeta(m);
-    //}
-} // namespace
-namespace VRM {
-    void ReleaseVRMMeta(VRMMetadata*& meta) {
-        if (meta) {
-            delete meta;
-            meta = nullptr;
-        }
+void VRM_ReleaseVRMMeta(void *p) {
+    VRM::VRMMetadata* meta = reinterpret_cast<VRM::VRMMetadata*>(p);
+    if (meta) {
+        delete meta;
+        meta = nullptr;
     }
-} // namespace VRM
+}
 //vrm
 
 using namespace Assimp;
