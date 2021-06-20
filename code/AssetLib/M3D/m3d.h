@@ -2661,7 +2661,7 @@ m3d_t *m3d_load(unsigned char *data, m3dread_t readfilecb, m3dfree_t freecb, m3d
                         j = m->numprop++;
                         m->prop = (m3dp_t *)M3D_REALLOC(m->prop, m->numprop * sizeof(m3dp_t));
                         if (!m->prop) goto memerr;
-                        m->prop[j].type = n + (k == m3dpf_map && n < 128 ? 128 : 0);
+                        //////m->prop[j].type = n + (k == m3dpf_map && n < 128 ? 128 : 0);
                         switch (k) {
                         case m3dpf_color: ptr = _m3d_gethex(ptr, &m->prop[j].value.color); break;
                         case m3dpf_uint8:
@@ -2803,7 +2803,7 @@ m3d_t *m3d_load(unsigned char *data, m3dread_t readfilecb, m3dfree_t freecb, m3d
                         j = h->numcmd++;
                         h->cmd = (m3dc_t *)M3D_REALLOC(h->cmd, h->numcmd * sizeof(m3dc_t));
                         if (!h->cmd) goto memerr;
-                        h->cmd[j].type = k;
+                        //////h->cmd[j].type = k;
                         h->cmd[j].arg = (uint32_t *)M3D_MALLOC(cd->p * sizeof(uint32_t));
                         if (!h->cmd[j].arg) goto memerr;
                         memset(h->cmd[j].arg, 0, cd->p * sizeof(uint32_t));
