@@ -66,6 +66,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <rapidjson/document.h>
 #include <rapidjson/rapidjson.h>
 
+//vrm
+void VRM_ReleaseVRMMeta(void *p) {
+    VRM::VRMMetadata* meta = reinterpret_cast<VRM::VRMMetadata*>(p);
+    if (meta) {
+        delete meta;
+        meta = nullptr;
+    }
+}
+//vrm
+
 using namespace Assimp;
 using namespace glTF2;
 using namespace glTFCommon;
@@ -113,15 +123,14 @@ const aiImporterDesc *glTF2Importer::GetInfo() const {
 
 bool glTF2Importer::CanRead(const std::string &filename, IOSystem *pIOHandler, bool checkSig) const {
     const std::string extension = GetExtension(filename);
-    if (!checkSig && (extension != "gltf") && (extension != "glb")) {
+    if (!checkSig && (extension != "gltf") && (extension != "glb") && (extension != "vrm")) {
         return false;
     }
 
     if (pIOHandler) {
         glTF2::Asset asset(pIOHandler);
-        return asset.CanRead(filename, extension == "glb");
+        return asset.CanRead(filename, extension == "glb" || extension == "vrm");
     }
-
     return false;
 }
 
@@ -359,6 +368,9 @@ static aiMaterial *ImportMaterial(std::vector<int> &embeddedTexIdxs, Asset &r, M
             aimat->AddProperty(&ior.ior, 1, AI_MATKEY_REFRACTI);
         }
 
+        //vrm
+        aimat->mShaderName = mat.shaderName;
+
         return aimat;
     } catch (...) {
         delete aimat;
@@ -377,7 +389,10 @@ void glTF2Importer::ImportMaterials(Asset &r) {
     mScene->mMaterials[numImportedMaterials] = ImportMaterial(mEmbeddedTexIdxs, r, defaultMaterial);
 
     for (unsigned int i = 0; i < numImportedMaterials; ++i) {
-        mScene->mMaterials[i] = ImportMaterial(mEmbeddedTexIdxs, r, r.materials[i]);
+        //mScene->mMaterials[i] = ImportMaterial(mEmbeddedTexIdxs, r, r.materials[i]);
+        glTF2::Ref<glTF2::Material> ref = r.materials.Retrieve(i);
+        mScene->mMaterials[i] = ImportMaterial(mEmbeddedTexIdxs, r, *ref);
+        mScene->mMaterials[i]->mShaderName = r.vrmdata.materialShaderName[mScene->mMaterials[i]->GetName().C_Str()];
     }
 }
 
@@ -581,6 +596,9 @@ void glTF2Importer::ImportMeshes(glTF2::Asset &r) {
                     aiAnimMesh &aiAnimMesh = *(aim->mAnimMeshes[i]);
                     Mesh::Primitive::Target &target = targets[i];
 
+                    //vrm
+                    aiAnimMesh.mName = target.name;
+
                     if (needPositions) {
                         if (target.position[0]->count != aim->mNumVertices) {
                             ASSIMP_LOG_WARN("Positions of target ", i, " in mesh \"", mesh.name, "\" does not match the vertex count");
@@ -588,7 +606,7 @@ void glTF2Importer::ImportMeshes(glTF2::Asset &r) {
                             aiVector3D *positionDiff = nullptr;
                             target.position[0]->ExtractData(positionDiff);
                             for (unsigned int vertexId = 0; vertexId < aim->mNumVertices; vertexId++) {
-                                aiAnimMesh.mVertices[vertexId] += positionDiff[vertexId];
+                            aiAnimMesh.mVertices[vertexId] = positionDiff[vertexId];
                             }
                             delete[] positionDiff;
                         }
@@ -600,7 +618,7 @@ void glTF2Importer::ImportMeshes(glTF2::Asset &r) {
                             aiVector3D *normalDiff = nullptr;
                             target.normal[0]->ExtractData(normalDiff);
                             for (unsigned int vertexId = 0; vertexId < aim->mNumVertices; vertexId++) {
-                                aiAnimMesh.mNormals[vertexId] += normalDiff[vertexId];
+                            aiAnimMesh.mNormals[vertexId] = normalDiff[vertexId];
                             }
                             delete[] normalDiff;
                         }
@@ -619,7 +637,7 @@ void glTF2Importer::ImportMeshes(glTF2::Asset &r) {
                             target.tangent[0]->ExtractData(tangentDiff);
 
                             for (unsigned int vertexId = 0; vertexId < aim->mNumVertices; ++vertexId) {
-                                tangent[vertexId].xyz += tangentDiff[vertexId];
+                            tangent[vertexId].xyz = tangentDiff[vertexId];
                                 aiAnimMesh.mTangents[vertexId] = tangent[vertexId].xyz;
                                 aiAnimMesh.mBitangents[vertexId] = (aiAnimMesh.mNormals[vertexId] ^ tangent[vertexId].xyz) * tangent[vertexId].w;
                             }
@@ -818,6 +836,15 @@ void glTF2Importer::ImportMeshes(glTF2::Asset &r) {
                 aim->mMaterialIndex = prim.material.GetIndex();
             } else {
                 aim->mMaterialIndex = mScene->mNumMaterials - 1;
+            }
+
+            for (unsigned int i = 0; i < r.materials.Size(); ++i) {
+                glTF2::Ref<glTF2::Material> m2 = r.materials.Retrieve(i);
+
+                if (m2.GetIndex() == prim.material.GetIndex()) {
+                    aim->mMaterialIndex = i;
+                    break;
+                }
             }
         }
     }
@@ -1196,7 +1223,7 @@ void glTF2Importer::ImportNodes(glTF2::Asset &r) {
     if (numRootNodes == 1) { // a single root node: use it
         mScene->mRootNode = ImportNode(mScene, r, meshOffsets, rootNodes[0]);
     } else if (numRootNodes > 1) { // more than one root node: create a fake root
-        aiNode *root = mScene->mRootNode = new aiNode("ROOT");
+        aiNode *root = mScene->mRootNode = new aiNode("__ROOT");
 
         root->mChildren = new aiNode *[numRootNodes];
         std::fill(root->mChildren, root->mChildren + numRootNodes, nullptr);
@@ -1546,6 +1573,8 @@ void glTF2Importer::ImportEmbeddedTextures(glTF2::Asset &r) {
 
         aiTexture *tex = mScene->mTextures[idx] = new aiTexture();
 
+        tex->mFilename = img.uri;
+
         size_t length = img.GetDataLength();
         void *data = img.StealData();
 
@@ -1609,7 +1638,8 @@ void glTF2Importer::InternReadFile(const std::string &pFile, aiScene *pScene, IO
 
     // read the asset file
     glTF2::Asset asset(pIOHandler, static_cast<rapidjson::IRemoteSchemaDocumentProvider *>(mSchemaDocumentProvider));
-    asset.Load(pFile, GetExtension(pFile) == "glb");
+    //asset.Load(pFile, GetExtension(pFile) == "glb");
+    asset.Load(pFile, GetExtension(pFile) == "glb" || GetExtension(pFile) == "vrm");
     if (asset.scene) {
         pScene->mName = asset.scene->name;
     }
@@ -1626,6 +1656,36 @@ void glTF2Importer::InternReadFile(const std::string &pFile, aiScene *pScene, IO
     ImportNodes(asset);
 
     ImportAnimations(asset);
+
+    {
+        this->mScene->mVRMMeta = asset.vrmdata.vrmdata->CreateClone();
+        auto m = static_cast<VRM::VRMMetadata*>(mScene->mVRMMeta);
+
+        for (int i = 0; i < m->materialNum; ++i) {
+            auto& a = m->material[i].textureProperties;
+
+            struct TT {
+                int& value;
+            };
+            TT table[] = {
+                {a._MainTex},
+                {a._ShadeTexture},
+                {a._BumpMap},
+                {a._ReceiveShadowTexture},
+                {a._ShadingGradeTexture},
+                {a._RimTexture},
+                {a._SphereAdd},
+                {a._EmissionMap},
+                {a._OutlineWidthTexture},
+                {a._UvAnimMaskTexture},
+            };
+
+            for (auto& t : table) {
+                if (t.value < 0) continue;
+                t.value = mEmbeddedTexIdxs[t.value];
+            }
+        }
+    }
 
     ImportCommonMetadata(asset);
 

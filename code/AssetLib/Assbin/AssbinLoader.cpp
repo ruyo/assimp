@@ -696,6 +696,7 @@ void AssbinImporter::InternReadFile(const std::string &pFile, aiScene *pScene, I
     stream->Seek(128, aiOrigin_CUR); // options
     stream->Seek(64, aiOrigin_CUR); // padding
 
+    /*
     if (compressed) {
         uLongf uncompressedSize = Read<uint32_t>(stream);
         uLongf compressedSize = static_cast<uLongf>(stream->FileSize() - stream->Tell());
@@ -721,8 +722,9 @@ void AssbinImporter::InternReadFile(const std::string &pFile, aiScene *pScene, I
         delete[] uncompressedData;
         delete[] compressedData;
     } else {
+    */
         ReadBinaryScene(stream, pScene);
-    }
+    //}
 
     pIOHandler->Close(stream);
 }
