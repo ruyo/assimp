@@ -338,6 +338,8 @@ struct aiScene
      */
     C_STRUCT aiMetadata* mMetaData;
 
+    void* mVRMMeta;
+
     /** The name of the scene itself.
      */
     C_STRUCT aiString mName;

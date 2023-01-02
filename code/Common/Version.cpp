@@ -138,6 +138,7 @@ ASSIMP_API aiScene::aiScene() :
         mName(),
         mNumSkeletons(0),
         mSkeletons(nullptr),
+        mVRMMeta(nullptr),
         mPrivate(new Assimp::ScenePrivateData()) {
     // empty
 }
@@ -185,6 +186,15 @@ ASSIMP_API aiScene::~aiScene() {
     aiMetadata::Dealloc(mMetaData);
 
     delete[] mSkeletons;
+    
+    mMetaData = nullptr;
+    if (mVRMMeta) {
+        extern void VRM_ReleaseVRMMeta(void* p);
+        VRM_ReleaseVRMMeta(mVRMMeta);
+
+        mVRMMeta = nullptr;
+    }
+
     
     delete static_cast<Assimp::ScenePrivateData *>(mPrivate);
 }
