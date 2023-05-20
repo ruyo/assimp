@@ -338,8 +338,6 @@ struct aiScene
      */
     C_STRUCT aiMetadata* mMetaData;
 
-    void* mVRMMeta;
-
     /** The name of the scene itself.
      */
     C_STRUCT aiString mName;
@@ -353,6 +351,8 @@ struct aiScene
      *
      */
     C_STRUCT aiSkeleton **mSkeletons;
+
+    void* mVRMMeta;
 
 #ifdef __cplusplus
 
