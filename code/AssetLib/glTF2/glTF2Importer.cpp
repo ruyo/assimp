@@ -67,7 +67,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <rapidjson/rapidjson.h>
 
 //vrm
-void VRM_ReleaseVRMMeta(void *p) {
+ASSIMP_API void VRM_ReleaseVRMMeta(void *p) {
     VRM::VRMMetadata* meta = reinterpret_cast<VRM::VRMMetadata*>(p);
     if (meta) {
         delete meta;
