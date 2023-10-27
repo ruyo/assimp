@@ -33,7 +33,10 @@ extern "C" {
             VRMBlendShapeBind *bind = nullptr;
 
             ~VRMBlendShapeGroup() {
-                delete[] bind;
+                if (bind) {
+                    delete[] bind;
+                    bind = nullptr;
+                }
             }
 
             void CopyFrom(const VRMBlendShapeGroup &src){
@@ -68,8 +71,14 @@ extern "C" {
             int* colliderGroups = nullptr;
 
             ~VRMSpring() {
-                delete[] bones_name;
-                delete[] colliderGroups;
+                if (bones_name) {
+                    delete[] bones_name;
+                    bones_name = nullptr;
+                }
+                if (colliderGroups) {
+                    delete[] colliderGroups;
+                    colliderGroups = nullptr;
+                }
             }
 
             void CopyFrom(const VRMSpring &src){
@@ -108,7 +117,10 @@ extern "C" {
             VRMCollider *colliders = nullptr;
 
             ~VRMColliderGroup() {
-                delete[] colliders;
+                if (colliders) {
+                    delete[] colliders;
+                    colliders = nullptr;
+                }
             }
 
             void CopyFrom(const VRMColliderGroup &src){
@@ -230,7 +242,10 @@ extern "C" {
             VRMLicensePair *licensePair = nullptr;
 
             ~VRMLicense() {
-                delete[] licensePair;
+                if (licensePair) {
+                    delete[] licensePair;
+                    licensePair = nullptr;
+                }
             }
 
             void CopyFrom(const VRMLicense &src) {
@@ -255,8 +270,8 @@ extern "C" {
 
             VRMHumanoid humanoidBone[55];
 
-            int blensShapeGroupNum = 0;
-            VRMBlendShapeGroup *blensShapeGourp = nullptr;
+            int blendShapeGroupNum = 0;
+            VRMBlendShapeGroup *blendShapeGroup = nullptr;
 
             int materialNum = 0;
             VRMMaterial *material = nullptr;
@@ -265,10 +280,22 @@ extern "C" {
             }
 
             ~VRMMetadata() {
-                delete[] springs;
-                delete[] colliderGroups;
-                delete[] blensShapeGourp;
-                delete[] material;
+                if (springs) {
+                    delete[] springs;
+                    springs = nullptr;
+                }
+                if (colliderGroups) {
+                    delete[] colliderGroups;
+                    colliderGroups = nullptr;
+                }
+                if (blendShapeGroup) {
+                    delete[] blendShapeGroup;
+                    blendShapeGroup = nullptr;
+                }
+                if (material) {
+                    delete[] material;
+                    material = nullptr;
+                }
             }
 
             VRMMetadata *CreateClone(){
@@ -292,10 +319,10 @@ extern "C" {
 					p->humanoidBone[i] = humanoidBone[i];
                 }
 
-				p->blensShapeGroupNum = blensShapeGroupNum;
-				p->blensShapeGourp = new VRMBlendShapeGroup[blensShapeGroupNum];
-				for (int i = 0; i < blensShapeGroupNum; ++i) {
-					p->blensShapeGourp[i].CopyFrom(blensShapeGourp[i]);
+				p->blendShapeGroupNum = blendShapeGroupNum;
+                p->blendShapeGroup = new VRMBlendShapeGroup[blendShapeGroupNum];
+                for (int i = 0; i < blendShapeGroupNum; ++i) {
+                    p->blendShapeGroup[i].CopyFrom(blendShapeGroup[i]);
 				}
 
 

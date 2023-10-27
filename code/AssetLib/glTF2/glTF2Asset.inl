@@ -2042,8 +2042,8 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
     if (Value* blendMaster = FindObjectLocal(*vrm, "blendShapeMaster")) {
         if (Value* bsg = FindArrayLocal(*blendMaster, "blendShapeGroups")) {
 
-            vrmdata->blensShapeGroupNum = bsg->Size();
-            vrmdata->blensShapeGourp = new VRM::VRMBlendShapeGroup[vrmdata->blensShapeGroupNum];
+            vrmdata->blendShapeGroupNum = bsg->Size();
+            vrmdata->blendShapeGroup = new VRM::VRMBlendShapeGroup[vrmdata->blendShapeGroupNum];
             for (uint32_t iBsg = 0; iBsg < bsg->Size(); ++iBsg) {
                 std::string s;
                 ReadMember((*bsg)[iBsg], "name", s);
@@ -2053,7 +2053,7 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
                     //if (a != s) {
                     //    continue;
                     //}
-                    auto& shapeGroup = vrmdata->blensShapeGourp[iBsg];
+                    auto& shapeGroup = vrmdata->blendShapeGroup[iBsg];
                     shapeGroup.groupName = s.c_str();
 
                     Value* binds = FindArrayLocal((*bsg)[iBsg], "binds");
