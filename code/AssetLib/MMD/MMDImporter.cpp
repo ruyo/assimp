@@ -51,8 +51,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <assimp/ai_assert.h>
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
+#include <assimp/CreateAnimMesh.h>
 
 
+#include <streambuf>
 #include <iomanip>
 #include <memory>
 #include <sstream>
@@ -67,6 +69,15 @@ static constexpr aiImporterDesc desc = { "MMD Importer",
     0,
     0,
     "pmx" };
+
+namespace {
+    struct membuf : std::streambuf
+    {
+        membuf(char* begin, char* end) {
+            this->setg(begin, begin, end);
+        }
+    };
+}
 
 namespace Assimp {
 
@@ -163,6 +174,85 @@ void MMDImporter::CreateDataFromImport(const pmx::PmxModel *pModel,
         indexStart += indexCount;
     }
 
+    {
+        int morphTotal = 0;
+        for (int morphNo = 0; morphNo < pModel->morph_count; morphNo++) {
+            const auto& morph = pModel->morphs[morphNo];
+            if (morph.morph_type != pmx::MorphType::Vertex) {
+                continue;
+            }
+            if (morph.morph_name.length() <= 0) {
+                continue;
+            }
+            morphTotal++;
+        }
+
+        int indexStart = 0;
+        int indexNext = 0;
+        for (unsigned int i = 0; i < pScene->mNumMeshes; i++) {
+            const unsigned int indexCount = pModel->materials[i].index_count;
+            indexStart = indexNext;
+            indexNext += indexCount;
+
+            auto* aim = pScene->mMeshes[i];
+            if (aim->mNumAnimMeshes == 0) {
+                aim->mNumAnimMeshes = (unsigned int)morphTotal;
+                aim->mAnimMeshes = new aiAnimMesh * [aim->mNumAnimMeshes];
+            }
+
+            int currentMorph = 0;
+            for (int morphNo = 0; morphNo < pModel->morph_count; morphNo++) {
+
+                const auto& morph = pModel->morphs[morphNo];
+                if (morph.morph_type != pmx::MorphType::Vertex) {
+                    continue;
+                }
+                if (morph.morph_name.length() <= 0) {
+                    continue;
+                }
+
+                int c = currentMorph;
+                currentMorph++;
+
+                aim->mAnimMeshes[c] = Assimp::aiCreateAnimMesh(aim);
+                aiAnimMesh& aiAnimMesh = *(aim->mAnimMeshes[c]);
+                for (unsigned int v = 0; v < aiAnimMesh.mNumVertices; ++v) {
+                    aiAnimMesh.mVertices[v] = aim->mVertices[v];
+                }
+
+                //vrm
+                aiAnimMesh.mName = morph.morph_name;
+
+                if (morph.vertex_offsets.get() != nullptr) {
+                    for (int vertexId = 0; vertexId < morph.offset_count; vertexId++) {
+                        const auto& ver = morph.vertex_offsets[vertexId];
+                        const int targetIndex = ver.vertex_index;
+
+                        int bFoundCount = false;
+                        for (unsigned int uu = 0; uu < indexCount; ++uu) {
+                            if (pModel->indices[indexStart + uu] == targetIndex) {
+                                ++bFoundCount;
+                                if (uu < aiAnimMesh.mNumVertices) {
+                                    aiAnimMesh.mVertices[uu].Set(
+                                        -morph.vertex_offsets[vertexId].position_offset[0],
+                                        morph.vertex_offsets[vertexId].position_offset[1],
+                                        -morph.vertex_offsets[vertexId].position_offset[2]);
+
+                                    aiAnimMesh.mVertices[uu] += aim->mVertices[uu];
+                                }
+                            }
+                        }
+                        if (bFoundCount == 0) {
+                            continue;
+                        }
+
+                        aiAnimMesh.mWeight = 1.f;
+                    }
+                }
+            }
+        }
+    } // morph end
+
     // create node hierarchy for bone position
     std::unique_ptr<aiNode *[]> ppNode(new aiNode *[pModel->bone_count]);
     for (auto i = 0; i < pModel->bone_count; i++) {
@@ -174,6 +264,11 @@ void MMDImporter::CreateDataFromImport(const pmx::PmxModel *pModel,
 
         if (bone.parent_index < 0) {
             pScene->mRootNode->addChildren(1, ppNode.get() + i);
+            aiVector3D v3 = aiVector3D(
+                bone.position[0],
+                bone.position[1],
+                bone.position[2]);
+            aiMatrix4x4::Translation(v3, ppNode[i]->mTransformation);
         } else {
             ppNode[bone.parent_index]->addChildren(1, ppNode.get() + i);
 
@@ -322,7 +417,11 @@ aiMesh *MMDImporter::CreateMesh(const pmx::PmxModel *pModel,
 aiMaterial *MMDImporter::CreateMaterial(const pmx::PmxMaterial *pMat,
         const pmx::PmxModel *pModel) {
     aiMaterial *mat = new aiMaterial();
-    aiString name(pMat->material_english_name);
+    //aiString name(pMat->material_english_name);
+    aiString name(pMat->material_name);
+    if (pMat->material_name.size() == 0) {
+        name = pMat->material_english_name;
+    }
     mat->AddProperty(&name, AI_MATKEY_NAME);
 
     aiColor3D diffuse(pMat->diffuse[0], pMat->diffuse[1], pMat->diffuse[2]);
