@@ -163,6 +163,7 @@ void MakeLeftHandedProcess::ProcessMesh(aiMesh *pMesh) {
 
     // mirror anim meshes positions, normals and stuff along the Z axis
     for (size_t m = 0; m < pMesh->mNumAnimMeshes; ++m) {
+        if (pMesh->mAnimMeshes[m]->mVertices == nullptr) break;
         for (size_t a = 0; a < pMesh->mAnimMeshes[m]->mNumVertices; ++a) {
             pMesh->mAnimMeshes[m]->mVertices[a].z *= -1.0f;
             if (pMesh->mAnimMeshes[m]->HasNormals()) {

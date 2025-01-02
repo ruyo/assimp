@@ -354,6 +354,8 @@ struct ASSIMP_API aiScene {
      */
     C_STRUCT aiSkeleton **mSkeletons;
 
+    void* mVRMMeta;
+
 #ifdef __cplusplus
 
     //! Default constructor - set everything to 0/nullptr
