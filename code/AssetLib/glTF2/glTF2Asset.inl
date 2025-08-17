@@ -2172,6 +2172,7 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
                     shapeGroup.groupName = s.c_str();
 
                     Value* binds = FindArrayLocal((*bsg)[iBsg], "binds");
+                    if (binds == nullptr) continue;
 
                     shapeGroup.bindNum = binds->Size();
                     shapeGroup.bind = new VRM::VRMBlendShapeBind[shapeGroup.bindNum];
