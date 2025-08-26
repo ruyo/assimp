@@ -1167,7 +1167,7 @@ inline void Image::Read(Value &obj, Asset &r) {
         }
     }
     if (Value* v = FindMember(obj, "name")) {
-        uri = v->GetString();
+        if (v->IsString()) uri = v->GetString();
     }
 }
 
@@ -1305,7 +1305,7 @@ inline void Material::Read(Value &material, Asset &r) {
 
     ReadMember(material, "shader", this->shaderName);
     if (Value* v = FindMember(material, "shader")) {
-        this->shaderName = *v->GetString();
+        if (v->IsString()) this->shaderName = *v->GetString();
     }
 
     if (Value *extensions = FindObject(material, "extensions")) {
@@ -1595,6 +1595,7 @@ inline void Mesh::Read(Value &pJSON_Object, Asset &pAsset_Root) {
                         }
                         if (Value* v1 = FindMember(target, "extra")) {
                             if (Value* v2 = FindMember(*v1, "name")) {
+                                if (v2->IsString() == false) continue;
                                 prim.targets[i].name = v2->GetString();
                             }
                         }
@@ -1604,6 +1605,7 @@ inline void Mesh::Read(Value &pJSON_Object, Asset &pAsset_Root) {
                 if (Value* ex = FindObject(primitive, "extras")) {
                     if (Value* t = FindArray(*ex, "targetNames")) {
                         for (uint32_t j = 0; j < t->Size(); ++j) {
+                            if ((*t)[j].IsString() == false) continue;
                             prim.targets[j].name = (*t)[j].GetString();
                         }
                     }
@@ -1916,28 +1918,31 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
                 VRM::VRMSpring& s = vrmdata->springs[i];
                 // warning! stiffiness in VRM  <- stiffness in member
                 if (Value* v = FindMember((*nodeArray)[i], "stiffiness")) {
-                    s.stiffness = v->GetFloat();
+                    if (v->IsNumber()) s.stiffness = v->GetFloat();
                 }
                 if (Value* v = FindMember((*nodeArray)[i], "gravityPower")) {
-                    s.gravityPower = v->GetFloat();
+                    if (v->IsNumber()) s.gravityPower = v->GetFloat();
                 }
                 if (Value* v = FindObjectLocal((*nodeArray)[i], "gravityDir")) {
-                    s.gravityDir[0] = FindMember(*v, "x")->GetFloat();
-                    s.gravityDir[1] = FindMember(*v, "y")->GetFloat();
-                    s.gravityDir[2] = FindMember(*v, "z")->GetFloat();
+                    if (FindMember(*v, "x") && FindMember(*v, "y") && FindMember(*v, "z")) {
+                        if (FindMember(*v, "x")->IsNumber()) s.gravityDir[0] = FindMember(*v, "x")->GetFloat();
+                        if (FindMember(*v, "y")->IsNumber()) s.gravityDir[1] = FindMember(*v, "y")->GetFloat();
+                        if (FindMember(*v, "z")->IsNumber()) s.gravityDir[2] = FindMember(*v, "z")->GetFloat();
+                    }
                 }
 
                 if (Value* v = FindMember((*nodeArray)[i], "dragForce")) {
-                    s.dragForce = v->GetFloat();
+                    if (v->IsNumber()) s.dragForce = v->GetFloat();
                 }
                 if (Value* v = FindMember((*nodeArray)[i], "hitRadius")) {
-                    s.hitRadius = v->GetFloat();
+                    if (v->IsNumber()) s.hitRadius = v->GetFloat();
                 }
                 if (Value* v = FindArrayLocal((*nodeArray)[i], "bones")) {
                     s.boneNum = v->Size();
                     s.bones = new int[s.boneNum];
                     s.bones_name = new aiString[s.boneNum];
                     for (unsigned int i2 = 0; i2 < v->Size(); ++i2) {
+                        if ((*v)[i2].IsNumber() == false) continue;
                         int j = (*v)[i2].GetInt();
                         s.bones[i2] = j;
                         Ref<Node> chn = r.nodes.Retrieve(s.bones[i2]);
@@ -1948,6 +1953,7 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
                     s.colliderGourpNum = v->Size();
                     s.colliderGroups = new int[s.colliderGourpNum];
                     for (unsigned int i2 = 0; i2 < v->Size(); ++i2) {
+                        if ((*v)[i2].IsNumber() == false) continue;
                         int j = (*v)[i2].GetInt();
                         s.colliderGroups[i2] = j;
                     }
@@ -1959,6 +1965,8 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
             vrmdata->colliderGroups = new VRM::VRMColliderGroup[vrmdata->colliderGroupNum];
             for (unsigned int i = 0; i < nodeArray->Size(); ++i) {
                 VRM::VRMColliderGroup& g = vrmdata->colliderGroups[i];
+                if (FindMember((*nodeArray)[i], "node") == nullptr) continue;
+                if (FindMember((*nodeArray)[i], "node")->IsNumber() == false) continue;
                 g.node = FindMember((*nodeArray)[i], "node")->GetInt();
 
                 Ref<Node> chn = r.nodes.Retrieve(g.node);
@@ -1971,11 +1979,15 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
                     for (unsigned int ic = 0; ic < cArray->Size(); ++ic) {
                         VRM::VRMCollider& c = g.colliders[ic];
                         if (Value* v = FindObjectLocal((*cArray)[ic], "offset")) {
-                            c.offset[0] = FindMember((*v), "x")->GetFloat();
-                            c.offset[1] = FindMember((*v), "y")->GetFloat();
-                            c.offset[2] = FindMember((*v), "z")->GetFloat();
+                            if (FindMember((*v), "x") && FindMember((*v), "y") && FindMember((*v), "z")) {
+                                if (FindMember((*v), "x")->IsNumber()) c.offset[0] = FindMember((*v), "x")->GetFloat();
+                                if (FindMember((*v), "y")->IsNumber()) c.offset[1] = FindMember((*v), "y")->GetFloat();
+                                if (FindMember((*v), "z")->IsNumber()) c.offset[2] = FindMember((*v), "z")->GetFloat();
+                            }
                         }
-                        c.radius = FindMember((*cArray)[ic], "radius")->GetFloat();
+                        if (FindMember((*cArray)[ic], "radius")) {
+                            if (FindMember((*cArray)[ic], "radius")->IsNumber()) c.radius = FindMember((*cArray)[ic], "radius")->GetFloat();
+                        }
                         //g.colliders.push_back(c);
                     }
                 }
@@ -1991,10 +2003,10 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
         for (uint32_t m = 0; m < mp->Size(); ++m) {
             std::string name, shaderName;
             if (Value* v = FindMember((*mp)[m], "name")) {
-                name = v->GetString();
+				if (v->IsString()) name = v->GetString();
             }
             if (Value* v = FindMember((*mp)[m], "shader")) {
-                shaderName = v->GetString();
+				if (v->IsString()) shaderName = v->GetString();
             }
             materialShaderName.insert(std::make_pair(name, shaderName));
 
@@ -2122,9 +2134,9 @@ inline void GLTF2VRMMetadata::Read(Document& doc, Asset& r)
                     lic.licensePair[i].Key = target[i];
 
                     if (i == VRM::LIC_texture) {
-                        lic.licensePair[i].Value = std::to_string(v->GetInt());
+                        if (v->IsNumber()) lic.licensePair[i].Value = std::to_string(v->GetInt());
                     } else {
-                        lic.licensePair[i].Value = v->GetString();
+						if (v->IsString()) lic.licensePair[i].Value = v->GetString();
                     }
                 }
             }

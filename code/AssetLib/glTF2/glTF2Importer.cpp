@@ -1758,6 +1758,7 @@ void glTF2Importer::InternReadFile(const std::string &pFile, aiScene *pScene, IO
 
             for (auto& t : table) {
                 if (t.value < 0) continue;
+                if (t.value >= mEmbeddedTexIdxs.size()) continue;
                 t.value = mEmbeddedTexIdxs[t.value];
             }
         }
