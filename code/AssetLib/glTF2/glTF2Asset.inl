@@ -2164,7 +2164,7 @@ inline void GLTF2VRMMetadata::Read(Document &doc, Asset &r) {
     if (Value *human = FindObjectLocal(*vrm, "humanoid")) {
         if (Value *hb = FindArrayLocal(*human, "humanBones")) {
             if (hb->IsArray()) {
-                for (uint32_t b = 0; b < hb->Size(); ++b) {
+                for (uint32_t b = 0; b < std::min((int)hb->Size(), (int)VRM::VRMMetadata::HumanoidBone::MAX_BONE_NUM); ++b) {
                     std::string s;
                     ReadMember((*hb)[b], "bone", s);
 
